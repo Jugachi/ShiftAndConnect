@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: shift_connect_db
+    restart: always
+    environment:
+      POSTGRES_USER: shift_user
+      POSTGRES_PASSWORD: super_secret_password # Später in Produktion ändern!
+      POSTGRES_DB: shift_connect
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
