@@ -1,0 +1,2 @@
+-- Add migration script here
+ALTER TABLE games ADD COLUMN last_activity TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;

@@ -1,8 +1,10 @@
 <template>
   <v-container class="text-center fill-height bg-deep-dark" fluid>
     <v-row justify="center" align="center" class="w-100">
-      <v-col cols="12" class="mb-4">
-        <!-- Spieler Anzeige im Cyber-Look (Titel entfernt) -->
+      
+      <v-col cols="12" class="mb-4 d-flex justify-center align-center">
+        <v-btn icon="mdi-arrow-left" variant="text" color="grey" @click="router.push('/')" class="mr-4"></v-btn>
+        
         <v-chip
           :color="currentPlayer === 1 ? '#00e5ff' : '#ff9800'"
           variant="outlined"
@@ -17,25 +19,21 @@
       </v-col>
 
       <v-col cols="12" class="d-flex justify-center">
-        <!-- Äußerer Rahmen (Metallic/Glass) -->
         <div class="game-board-wrapper">
           <div class="game-board">
             
-            <!-- Obere Reihe: Pfeile nach unten -->
             <div class="empty-corner"></div>
             <div v-for="col in 7" :key="'col-down-'+col" class="shift-btn">
               <v-btn icon="mdi-chevron-double-down" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'down')"></v-btn>
             </div>
             <div class="empty-corner"></div>
 
-            <!-- Mittlere Reihen (Zellen & seitliche Pfeile) -->
             <template v-for="(row, rowIndex) in board" :key="'row-'+rowIndex">
-              <!-- Linke Spalte: Pfeile nach rechts -->
+              
               <div class="shift-btn">
                 <v-btn icon="mdi-chevron-double-right" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'right')"></v-btn>
               </div>
 
-              <!-- Spielfeld Zellen mit Animations-Klassen -->
               <div
                 v-for="(cell, colIndex) in row"
                 :key="'cell-'+rowIndex+'-'+colIndex"
@@ -48,17 +46,14 @@
                 }"
                 @click="placePiece(rowIndex, colIndex)"
               >
-                <!-- Spielsteine -->
                 <div v-if="cell !== 0" class="piece" :class="{'player1': cell === 1, 'player2': cell === 2}"></div>
               </div>
 
-              <!-- Rechte Spalte: Pfeile nach links -->
               <div class="shift-btn">
                 <v-btn icon="mdi-chevron-double-left" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'left')"></v-btn>
               </div>
             </template>
 
-            <!-- Untere Reihe: Pfeile nach oben -->
             <div class="empty-corner"></div>
             <div v-for="col in 7" :key="'col-up-'+col" class="shift-btn">
               <v-btn icon="mdi-chevron-double-up" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'up')"></v-btn>
@@ -74,14 +69,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
+const router = useRouter();
 const roomId = route.params.id as string;
 
 // Das Spielfeld
 const board = ref<number[][]>(Array.from({ length: 7 }, () => Array(7).fill(0)));
 const currentPlayer = ref<number>(1);
+const winner = ref<number | null>(null);
 
 interface ShiftAnimation {
   row: number;
@@ -94,47 +91,29 @@ const shiftAnim = ref<ShiftAnimation>({ row: -1, col: -1, direction: '' });
 let ws: WebSocket | null = null;
 
 onMounted(() => {
-  // Verbinde dich mit dem Rust WebSocket Server, sobald die Seite lädt
-  ws = new WebSocket(`ws://localhost:3000/ws/games/${roomId}`);
+  ws = new WebSocket(`ws://127.0.0.1:3000/ws/games/${roomId}`);
 
   ws.onopen = () => {
     console.log(`Erfolgreich mit Raum ${roomId} verbunden!`);
   };
 
-  // Wenn der Server einen Zug von einem Spieler schickt...
   ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
+    const update = JSON.parse(event.data);
     
-    // ... wende den Zug auf das Brett an!
-    if (msg.action === 'place') {
-      board.value[msg.row][msg.col] = msg.player;
-    } 
-    else if (msg.action === 'shift_row') {
-      const row = board.value[msg.row];
-      if (msg.direction === 'right') {
-        const last = row.pop();
-        if (last !== undefined) row.unshift(last);
-      } else if (msg.direction === 'left') {
-        const first = row.shift();
-        if (first !== undefined) row.push(first);
-      }
-      triggerAnimation('row', msg.row, msg.direction);
-    } 
-    else if (msg.action === 'shift_col') {
-      if (msg.direction === 'down') {
-        const lastPiece = board.value[6][msg.col];
-        for (let i = 6; i > 0; i--) board.value[i][msg.col] = board.value[i - 1][msg.col];
-        board.value[0][msg.col] = lastPiece;
-      } else if (msg.direction === 'up') {
-        const firstPiece = board.value[0][msg.col];
-        for (let i = 0; i < 6; i++) board.value[i][msg.col] = board.value[i + 1][msg.col];
-        board.value[6][msg.col] = firstPiece;
-      }
-      triggerAnimation('col', msg.col, msg.direction);
+    // Server hat Vorrang: Überschreibe lokales Board mit Server-Status
+    board.value = update.board;
+    currentPlayer.value = update.current_player;
+    
+    // Prüfen ob jemand gewonnen hat
+    if (update.winner) {
+      winner.value = update.winner;
+      
+      // Kurze Verzögerung, damit man den Sieg-Zug noch sieht
+      setTimeout(() => {
+        alert(`🎉 SPIELER ${update.winner} HAT GEWONNEN! 🎉\nDie Lobby wird nun geschlossen.`);
+        router.push('/'); // Zurück zur Startseite
+      }, 500);
     }
-
-    // Spieler wechseln, nachdem die Aktion ausgeführt wurde
-    currentPlayer.value = currentPlayer.value === 1 ? 2 : 1;
   };
 
   ws.onerror = (error) => {
@@ -143,14 +122,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (ws) ws.close(); // Verbindung trennen, wenn man die Seite verlässt
+  if (ws) ws.close();
 });
 
 
-// --- SPIELER AKTIONEN (Senden an Server) ---
+// --- SPIELER AKTIONEN ---
 
 const placePiece = (row: number, col: number) => {
-  // Sende nur, wenn das Feld leer ist und die Verbindung steht
   if (board.value[row][col] === 0 && ws && ws.readyState === WebSocket.OPEN) {
     const payload = { action: 'place', row, col, player: currentPlayer.value };
     ws.send(JSON.stringify(payload));
@@ -159,6 +137,7 @@ const placePiece = (row: number, col: number) => {
 
 const shiftRow = (rowIndex: number, direction: 'right' | 'left') => {
   if (ws && ws.readyState === WebSocket.OPEN) {
+    triggerAnimation('row', rowIndex, direction);
     const payload = { action: 'shift_row', row: rowIndex, direction, player: currentPlayer.value };
     ws.send(JSON.stringify(payload));
   }
@@ -166,12 +145,13 @@ const shiftRow = (rowIndex: number, direction: 'right' | 'left') => {
 
 const shiftCol = (colIndex: number, direction: 'up' | 'down') => {
   if (ws && ws.readyState === WebSocket.OPEN) {
+    triggerAnimation('col', colIndex, direction);
     const payload = { action: 'shift_col', col: colIndex, direction, player: currentPlayer.value };
     ws.send(JSON.stringify(payload));
   }
 };
 
-// Hilfsfunktion für die Animation
+// Hilfsfunktion für die Animation (wird sofort ausgelöst für besseres lokales Feedback)
 const triggerAnimation = (type: 'row' | 'col', index: number, direction: string) => {
   if (type === 'row') shiftAnim.value = { row: index, col: -1, direction };
   if (type === 'col') shiftAnim.value = { row: -1, col: index, direction };
@@ -180,25 +160,19 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
 </script>
 
 <style scoped>
-/* Hintergrund der gesamten Seite */
 .bg-deep-dark {
   background-color: #121418;
   background-image: radial-gradient(circle at 50% 0%, #1f2532 0%, #121418 70%);
 }
 
-/* Der äußere Rahmen des Spielbretts */
 .game-board-wrapper {
   padding: 30px;
   background: linear-gradient(145deg, #252a35, #181a22);
   border-radius: 16px;
-  box-shadow: 
-    0 30px 60px rgba(0, 0, 0, 0.6), 
-    inset 0 1px 2px rgba(255, 255, 255, 0.1),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.1), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Das Grid-Layout */
 .game-board {
   display: grid;
   grid-template-columns: 45px repeat(7, 65px) 45px;
@@ -208,7 +182,6 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   justify-items: center;
 }
 
-/* Einzelnes Spielfeld (leerer Slot) */
 .cell {
   width: 100%;
   height: 100%;
@@ -228,7 +201,7 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   border-color: rgba(0, 229, 255, 0.3);
 }
 
-/* --- VERSCHIEBE-ANIMATIONEN --- */
+/* --- ANIMATIONEN --- */
 .anim-shift-right { animation: slideGlowRight 0.3s ease-out; }
 .anim-shift-left { animation: slideGlowLeft 0.3s ease-out; }
 .anim-shift-down { animation: slideGlowDown 0.3s ease-out; }
@@ -251,7 +224,7 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   100% { transform: translateY(0); box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
 }
 
-/* Spielsteine mit 3D-Look und starkem Neon-Glow */
+/* SPIELSTEINE */
 .piece {
   width: 48px;
   height: 48px;
@@ -275,7 +248,7 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   box-shadow: 0 0 15px rgba(255, 152, 0, 0.6), inset 0 -3px 6px rgba(0,0,0,0.4);
 }
 
-/* Die neuen Tech-Buttons für den Shift */
+/* BUTTONS */
 .cyber-btn {
   color: #00e5ff !important;
   border-color: rgba(0, 229, 255, 0.2) !important;
@@ -283,7 +256,6 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   transition: all 0.3s ease;
   border-radius: 8px;
 }
-
 .cyber-btn:hover {
   background-color: rgba(0, 229, 255, 0.1);
   border-color: rgba(0, 229, 255, 0.8) !important;
@@ -291,7 +263,6 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   transform: scale(1.05);
 }
 
-/* Aktueller Spieler Anzeige (Pille) */
 .player-chip {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -313,8 +284,5 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   100% { opacity: 1; transform: scale(1.1); }
 }
 
-.empty-corner {
-  width: 100%;
-  height: 100%;
-}
+.empty-corner { width: 100%; height: 100%; }
 </style>
