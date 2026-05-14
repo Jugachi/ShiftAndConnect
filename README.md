@@ -55,20 +55,6 @@ Once finished:
 
 ---
 
-## 🌐 Deployment Notes (Cloudflare & Nginx)
-
-If you are hosting this behind a reverse proxy (like Nginx) and using Cloudflare:
-
-1. **Subdomain Setup**: Point your A-record (e.g., `games.yourdomain.com`) to your server IP.
-2. **Cloudflare Origin Rules**: Since the container might run on a custom port (e.g., `6010`), set an Origin Rule in Cloudflare to rewrite requests for your subdomain to that specific port.
-3. **SSL Configuration**: Set Cloudflare SSL to **"Flexible"** if your Docker container serves over HTTP.
-4. **WebSocket Headers**: Ensure your Nginx configuration includes the necessary headers for WebSocket upgrades:
-
-```bash
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "Upgrade";
-```
-
 ## 🎮 How to Play
 
 1. **Connect**: Be the first to get 5 of your colored pieces in a line.
