@@ -26,14 +26,22 @@
             
             <div class="empty-corner"></div>
             <div v-for="col in 7" :key="'col-down-'+col" class="shift-btn">
-              <v-btn icon="mdi-chevron-double-down" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'down')"></v-btn>
+              <v-tooltip text="Spalte nach unten drücken" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn v-bind="props" icon="mdi-arrow-down-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'down')"></v-btn>
+                </template>
+              </v-tooltip>
             </div>
             <div class="empty-corner"></div>
 
             <template v-for="(row, rowIndex) in board" :key="'row-'+rowIndex">
               
               <div class="shift-btn">
-                <v-btn icon="mdi-chevron-double-right" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'right')"></v-btn>
+                <v-tooltip text="Reihe nach rechts drücken" location="left">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" icon="mdi-arrow-right-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'right')"></v-btn>
+                  </template>
+                </v-tooltip>
               </div>
 
               <div
@@ -45,7 +53,7 @@
                   'anim-shift-left': shiftAnim.row === rowIndex && shiftAnim.direction === 'left',
                   'anim-shift-down': shiftAnim.col === colIndex && shiftAnim.direction === 'down',
                   'anim-shift-up': shiftAnim.col === colIndex && shiftAnim.direction === 'up',
-                  'winning-cell-highlight': isWinningCell(rowIndex, colIndex) /* <--- NEU */
+                  'winning-cell-highlight': isWinningCell(rowIndex, colIndex)
                 }"
                 @click="placePiece(rowIndex, colIndex)"
               >
@@ -53,13 +61,21 @@
               </div>
 
               <div class="shift-btn">
-                <v-btn icon="mdi-chevron-double-left" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'left')"></v-btn>
+                <v-tooltip text="Reihe nach links drücken" location="right">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" icon="mdi-arrow-left-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'left')"></v-btn>
+                  </template>
+                </v-tooltip>
               </div>
             </template>
 
             <div class="empty-corner"></div>
             <div v-for="col in 7" :key="'col-up-'+col" class="shift-btn">
-              <v-btn icon="mdi-chevron-double-up" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'up')"></v-btn>
+              <v-tooltip text="Spalte nach oben drücken" location="bottom">
+                <template v-slot:activator="{ props }">
+                  <v-btn v-bind="props" icon="mdi-arrow-up-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'up')"></v-btn>
+                </template>
+              </v-tooltip>
             </div>
             <div class="empty-corner"></div>
             
