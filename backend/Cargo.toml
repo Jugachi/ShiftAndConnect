@@ -16,3 +16,4 @@ tower-http = { version = "0.5", features = ["cors"] }
 rand = "0.8"
 # Für WebSocket Streams
 futures-util = "0.3"
+dotenvy = "0.15"
