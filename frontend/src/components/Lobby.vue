@@ -148,7 +148,8 @@ onMounted(() => {
   fetchGames(); // Initiales Laden
 
   // Verbinde dich mit dem Lobby-Kanal
-  lobbyWs = new WebSocket('ws://${window.location.host}:3000/ws/lobby');
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  lobbyWs = new WebSocket(`${protocol}//${window.location.host}/ws/lobby`);
   
   lobbyWs.onmessage = (event) => {
     // Wenn der Server "update" schickt (neues Spiel, Spiel gewonnen oder Inaktivität)
