@@ -9,7 +9,6 @@ RUN npm run build
 # Production Stage
 FROM nginx:stable-alpine
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-# Nginx config für Vue Router und Proxy zum Backend
 RUN echo 'server { \
     listen 80; \
     location / { \

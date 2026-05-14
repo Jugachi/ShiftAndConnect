@@ -8,24 +8,19 @@
           <v-row no-gutters>
             <v-col cols="12" md="5" class="border-right-md pa-6 d-flex flex-column">
               <h2 class="text-h5 text-cyan accent-glow mb-6">Neues Signal</h2>
-              
+
               <v-btn-toggle v-model="gameMode" mandatory class="cyber-toggle mb-4" selected-class="cyber-toggle-active">
                 <v-btn value="duo" class="flex-grow-1"><v-icon start>mdi-account-multiple</v-icon> Duo</v-btn>
                 <v-btn value="solo" class="flex-grow-1"><v-icon start>mdi-robot</v-icon> Solo</v-btn>
               </v-btn-toggle>
 
-              <v-switch
-                v-model="isPrivate"
-                color="#00e5ff"
-                label="Privates Signal (Passwort)"
-                hide-details
-                class="mb-8 cyber-switch"
-              ></v-switch>
+              <v-switch v-model="isPrivate" color="#00e5ff" label="Privates Signal (Passwort)" hide-details
+                class="mb-8 cyber-switch"></v-switch>
 
               <v-spacer></v-spacer>
 
               <v-btn block size="x-large" variant="outlined" class="cyber-btn-primary" @click="createGame">
-                Initialisieren <v-icon end>mdi-rocket-launch</v-icon>
+                Initialisieren
               </v-btn>
             </v-col>
 
@@ -34,19 +29,15 @@
                 <h2 class="text-h5 text-orange accent-glow">Aktive Signale</h2>
                 <v-btn icon="mdi-refresh" variant="text" color="#ff9800" @click="fetchGames"></v-btn>
               </div>
-              
+
               <div class="server-list">
                 <div v-if="gamesList.length === 0" class="text-grey text-center mt-8">
                   Keine aktiven Signale gefunden.
                 </div>
 
-                <v-card
-                  v-for="game in gamesList"
-                  :key="game.room_code"
+                <v-card v-for="game in gamesList" :key="game.room_code"
                   class="cyber-server-card mb-3 pa-3 d-flex justify-space-between align-center cursor-pointer"
-                  variant="outlined"
-                  @click="initiateJoin(game)"
-                >
+                  variant="outlined" @click="initiateJoin(game)">
                   <div class="d-flex align-center" style="width: 40%">
                     <v-icon :color="game.is_private ? 'error' : 'success'" size="x-large" class="mr-4 icon-glow">
                       {{ game.is_private ? 'mdi-lock' : 'mdi-lock-open-variant' }}
@@ -57,16 +48,8 @@
                     </div>
                   </div>
 
-                  <div class="d-flex justify-center flex-grow-1">
-                    <v-icon size="x-large" color="rgba(255, 255, 255, 0.2)">mdi-plus</v-icon>
-                  </div>
-                  
-                  <v-btn
-                    icon="mdi-login"
-                    variant="tonal"
-                    :color="game.is_private ? 'error' : 'success'"
-                    @click.stop="initiateJoin(game)"
-                  ></v-btn>
+                  <v-btn icon="mdi-plus" variant="tonal" :color="game.is_private ? 'error' : 'success'"
+                    @click.stop="initiateJoin(game)"></v-btn>
                 </v-card>
               </div>
             </v-col>
@@ -93,16 +76,9 @@
         <v-card-title class="text-orange text-center pt-6">Sicherheitsfreigabe</v-card-title>
         <v-card-text>
           <p class="text-center mb-4">Raum {{ selectedRoom }} erfordert ein Passwort.</p>
-          <v-text-field
-            v-model="inputPassword"
-            label="Passwort"
-            variant="outlined"
-            color="#ff9800"
-            base-color="rgba(255, 255, 255, 0.3)"
-            class="cyber-input text-center"
-            :error-messages="joinError"
-            @keyup.enter="submitJoin"
-          ></v-text-field>
+          <v-text-field v-model="inputPassword" label="Passwort" variant="outlined" color="#ff9800"
+            base-color="rgba(255, 255, 255, 0.3)" class="cyber-input text-center" :error-messages="joinError"
+            @keyup.enter="submitJoin"></v-text-field>
         </v-card-text>
         <v-card-actions class="justify-center pb-6">
           <v-btn color="grey" variant="text" @click="showJoinDialog = false">Abbrechen</v-btn>
@@ -115,58 +91,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'; // onUnmounted hinzugefügt
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
-// State: Erstellung
 const gameMode = ref<string>('duo');
 const isPrivate = ref<boolean>(false);
 const createdRoomCode = ref<string>('');
 const createdPassword = ref<string>('');
 const showCreatedPasswordDialog = ref<boolean>(false);
 
-// State: Server Liste
 interface GameListItem {
   room_code: string;
   game_mode: string;
-  is_private: boolean; // boolean statt bool in TS!
+  is_private: boolean;
 }
 const gamesList = ref<GameListItem[]>([]);
 
-// State: Join Flow
 const showJoinDialog = ref<boolean>(false);
 const selectedRoom = ref<string>('');
 const inputPassword = ref<string>('');
 const joinError = ref<string>('');
 
-// --- LOBBY ECHTZEIT-VERBINDUNG ---
 let lobbyWs: WebSocket | null = null;
 
 onMounted(() => {
-  fetchGames(); // Initiales Laden
+  fetchGames();
 
-  // Verbinde dich mit dem Lobby-Kanal
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   lobbyWs = new WebSocket(`${protocol}//${window.location.host}/ws/lobby`);
-  
+
   lobbyWs.onmessage = (event) => {
-    // Wenn der Server "update" schickt (neues Spiel, Spiel gewonnen oder Inaktivität)
     if (event.data === 'update') {
-      fetchGames(); // Liste lautlos im Hintergrund aktualisieren
+      fetchGames();
     }
   };
 });
 
 onUnmounted(() => {
-  // Wenn der Spieler die Lobby verlässt, Verbindung trennen
   if (lobbyWs) {
     lobbyWs.close();
   }
 });
 
-// Holt die Liste der aktiven Spiele
 const fetchGames = async () => {
   try {
     const response = await fetch('/api/games');
@@ -178,13 +146,12 @@ const fetchGames = async () => {
   }
 };
 
-// Spiel erstellen
 const createGame = async () => {
   try {
     const response = await fetch('/api/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: gameMode.value, is_private: isPrivate.value }), 
+      body: JSON.stringify({ mode: gameMode.value, is_private: isPrivate.value }),
     });
 
     if (response.ok) {
@@ -192,10 +159,7 @@ const createGame = async () => {
       createdRoomCode.value = data.room_code;
 
       localStorage.setItem(`shift_role_${data.room_code}`, '1');
-      
-      // Hinweis: Wir müssen hier fetchGames() nicht mehr manuell rufen, 
-      // da der Server sofort ein 'update' über WebSocket schickt!
-      
+
       if (isPrivate.value && data.password) {
         createdPassword.value = data.password;
         showCreatedPasswordDialog.value = true;
@@ -249,7 +213,7 @@ const attemptJoin = async (roomCode: string, password: string | null) => {
       joinError.value = "Falsches Passwort!";
     } else {
       joinError.value = "Raum nicht gefunden.";
-      fetchGames(); // Falls der Raum in der Zwischenzeit gelöscht wurde
+      fetchGames();
     }
   } catch (error) {
     console.error("Join Fehler:", error);
@@ -258,11 +222,27 @@ const attemptJoin = async (roomCode: string, password: string | null) => {
 </script>
 
 <style scoped>
-.bg-deep-dark { background-color: #121418; background-image: radial-gradient(circle at 50% 0%, #1f2532 0%, #121418 70%); }
-.title-glow { text-shadow: 0 0 20px rgba(255, 255, 255, 0.2); letter-spacing: 4px; }
-.accent-glow { text-shadow: 0 0 10px currentColor; }
-.text-cyan { color: #00e5ff !important; }
-.text-orange { color: #ff9800 !important; }
+.bg-deep-dark {
+  background-color: #121418;
+  background-image: radial-gradient(circle at 50% 0%, #1f2532 0%, #121418 70%);
+}
+
+.title-glow {
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  letter-spacing: 4px;
+}
+
+.accent-glow {
+  text-shadow: 0 0 10px currentColor;
+}
+
+.text-cyan {
+  color: #00e5ff !important;
+}
+
+.text-orange {
+  color: #ff9800 !important;
+}
 
 .lobby-wrapper {
   background: linear-gradient(145deg, #252a35, #181a22);
@@ -272,47 +252,95 @@ const attemptJoin = async (roomCode: string, password: string | null) => {
   overflow: hidden;
 }
 
-@media (min-width: 960px) { .border-right-md { border-right: 1px solid rgba(255, 255, 255, 0.05); } }
+@media (min-width: 960px) {
+  .border-right-md {
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
 
-.cyber-toggle { background-color: rgba(0, 0, 0, 0.2) !important; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; width: 100%; }
-.cyber-toggle-active { background-color: rgba(0, 229, 255, 0.15) !important; color: #00e5ff !important; border-color: rgba(0, 229, 255, 0.5) !important; box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.2); }
+.cyber-toggle {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  width: 100%;
+}
 
-.cyber-btn-primary { color: #00e5ff !important; border-color: rgba(0, 229, 255, 0.3) !important; background-color: rgba(0, 0, 0, 0.2); border-radius: 8px; font-weight: bold; letter-spacing: 1px; }
-.cyber-btn-primary:hover { background-color: rgba(0, 229, 255, 0.1); border-color: rgba(0, 229, 255, 0.8) !important; box-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+.cyber-toggle-active {
+  background-color: rgba(0, 229, 255, 0.15) !important;
+  color: #00e5ff !important;
+  border-color: rgba(0, 229, 255, 0.5) !important;
+  box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.2);
+}
 
-/* Server List Area */
+.cyber-btn-primary {
+  color: #00e5ff !important;
+  border-color: rgba(0, 229, 255, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.cyber-btn-primary:hover {
+  background-color: rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.8) !important;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+}
+
 .server-list {
   max-height: 350px;
   overflow-y: auto;
   padding-right: 10px;
 }
 
-/* Custom Scrollbar */
-.server-list::-webkit-scrollbar { width: 6px; }
-.server-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
-.server-list::-webkit-scrollbar-thumb { background: rgba(255, 152, 0, 0.5); border-radius: 4px; }
+.server-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.server-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.server-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 152, 0, 0.5);
+  border-radius: 4px;
+}
 
 .cyber-server-card {
   background: rgba(0, 0, 0, 0.3) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   transition: all 0.2s ease;
 }
+
 .cyber-server-card:hover {
   background: rgba(0, 0, 0, 0.5) !important;
   border-color: rgba(255, 152, 0, 0.4) !important;
   transform: translateX(4px);
 }
 
-/* Dialogs */
 .cyber-dialog {
   border: 1px solid rgba(0, 229, 255, 0.2);
-  box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
-.tracking-widest { letter-spacing: 6px; }
 
-/* Input */
-:deep(.cyber-input input) { color: white !important; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
+.tracking-widest {
+  letter-spacing: 6px;
+}
 
-.icon-glow { filter: drop-shadow(0 0 8px currentColor); }
-.cursor-pointer { cursor: pointer; }
+:deep(.cyber-input input) {
+  color: white !important;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.icon-glow {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
 </style>

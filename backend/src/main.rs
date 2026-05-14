@@ -16,7 +16,6 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{broadcast, Mutex};
 use tower_http::cors::{Any, CorsLayer};
 
-// --- DATENMODELLE (SERDE) ---
 #[derive(Serialize, Deserialize, Clone)]
 struct CreateGameReq {
     mode: String,
@@ -59,11 +58,9 @@ struct GameUpdate {
     player_count: usize,
 }
 
-// --- GLOBALER STATE ---
 struct AppState {
     db_pool: PgPool,
     rooms: Mutex<HashMap<String, broadcast::Sender<String>>>,
-    // NEU: Ein globaler Kanal nur für die Lobby-Updates
     lobby_tx: broadcast::Sender<String>,
 }
 
@@ -77,7 +74,6 @@ async fn main() {
         .await
         .unwrap();
 
-    // Lobby Channel erstellen
     let (lobby_tx, _) = broadcast::channel(100);
 
     let shared_state = Arc::new(AppState {
@@ -86,9 +82,8 @@ async fn main() {
         lobby_tx: lobby_tx.clone(),
     });
 
-    // --- BACKGROUND TASK: CLEANUP ---
     let cleanup_pool = pool.clone();
-    let cleanup_tx = lobby_tx.clone(); // Kopie für den Task
+    let cleanup_tx = lobby_tx.clone();
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
@@ -105,7 +100,6 @@ async fn main() {
                         "🧹 Cleanup: {} inaktive Spiele gelöscht.",
                         res.rows_affected()
                     );
-                    // NEU: Sag der Lobby Bescheid, dass Spiele gelöscht wurden!
                     let _ = cleanup_tx.send("update".to_string());
                 }
             }
@@ -120,7 +114,7 @@ async fn main() {
     let app = Router::new()
         .route("/api/games", get(list_games).post(create_game))
         .route("/api/games/:room_code/join", post(join_game))
-        .route("/ws/lobby", get(ws_lobby_handler)) // NEU: Lobby WebSocket Route
+        .route("/ws/lobby", get(ws_lobby_handler))
         .route("/ws/games/:room_code", get(ws_handler))
         .with_state(shared_state)
         .layer(cors);
@@ -130,7 +124,6 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-// --- REST API ---
 
 async fn list_games(
     State(state): State<Arc<AppState>>,
@@ -176,7 +169,6 @@ async fn create_game(
 
     match result {
         Ok(_) => {
-            // NEU: Sag der Lobby Bescheid, dass es ein neues Spiel gibt!
             let _ = state.lobby_tx.send("update".to_string());
             Ok(Json(GameRes {
                 room_code,
@@ -214,7 +206,6 @@ async fn join_game(
     }
 }
 
-// --- NEU: LOBBY WEBSOCKET HANDLER ---
 async fn ws_lobby_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
@@ -222,7 +213,6 @@ async fn ws_lobby_handler(
     ws.on_upgrade(move |mut socket| async move {
         let mut rx = state.lobby_tx.subscribe();
         while let Ok(msg) = rx.recv().await {
-            // Sende das Wort "update" an das Frontend
             if socket.send(Message::Text(msg)).await.is_err() {
                 break;
             }
@@ -230,7 +220,6 @@ async fn ws_lobby_handler(
     })
 }
 
-// --- SPIEL WEBSOCKET HANDLER ---
 async fn ws_handler(
     ws: WebSocketUpgrade,
     Path(room_code): Path<String>,
@@ -261,7 +250,7 @@ async fn handle_socket(socket: WebSocket, room_code: String, state: Arc<AppState
                 current_player: g.current_player, 
                 winner: None, 
                 is_closed: false,
-                player_count: tx_init.receiver_count() // Aktuelle Anzahl der verbundenen WebSockets
+                player_count: tx_init.receiver_count()
              };
              let _ = tx_init.send(serde_json::to_string(&update).unwrap());
         }
@@ -307,7 +296,6 @@ async fn handle_socket(socket: WebSocket, room_code: String, state: Arc<AppState
                             sqlx::query!("DELETE FROM games WHERE room_code = $1", room_code_task)
                                 .execute(&state_clone.db_pool)
                                 .await;
-                        // NEU: Sag der Lobby Bescheid, dass dieses Spiel vorbei und gelöscht ist!
                         let _ = state_clone.lobby_tx.send("update".to_string());
                     } else {
                         let _ = sqlx::query!("UPDATE games SET board = $1, current_player = $2, last_activity = NOW() WHERE room_code = $3", serde_json::to_value(&board).unwrap(), current_player, room_code_task).execute(&state_clone.db_pool).await;
@@ -329,7 +317,6 @@ async fn handle_socket(socket: WebSocket, room_code: String, state: Arc<AppState
     tokio::select! { _ = (&mut send_task) => recv_task.abort(), _ = (&mut recv_task) => send_task.abort() };
 }
 
-// --- SPIELLOGIK HILFSFUNKTIONEN (Unverändert) ---
 fn process_action(board: &mut Vec<Vec<i32>>, action: &GameAction) {
     match action.action.as_str() {
         "place" => {

@@ -1,16 +1,12 @@
 <template>
   <v-container class="text-center fill-height bg-deep-dark" fluid>
     <v-row justify="center" align="center" class="w-100">
-      
+
       <v-col cols="12" class="mb-4 d-flex justify-center align-center">
         <v-btn icon="mdi-arrow-left" variant="text" color="grey" @click="router.push('/')" class="mr-4"></v-btn>
-        
-        <v-chip
-          :color="playerCount < 2 ? 'grey' : (currentPlayer === 1 ? '#00e5ff' : '#ff9800')"
-          variant="outlined"
-          class="text-subtitle-1 font-weight-bold px-6 py-5 player-chip"
-          v-if="!winner"
-        >
+
+        <v-chip :color="playerCount < 2 ? 'grey' : (currentPlayer === 1 ? '#00e5ff' : '#ff9800')" variant="outlined"
+          class="text-subtitle-1 font-weight-bold px-6 py-5 player-chip" v-if="!winner">
           <span v-if="playerCount < 2">
             <v-progress-circular indeterminate size="20" width="2" class="mr-2"></v-progress-circular>
             Warte auf Gegner ({{ playerCount }}/2)
@@ -23,72 +19,68 @@
       <v-col cols="12" class="d-flex justify-center">
         <div class="game-board-wrapper" :class="{ 'disabled-board': !isMyTurn && !winner, 'game-over-board': winner }">
           <div class="game-board">
-            
+
             <div class="empty-corner"></div>
-            <div v-for="col in 7" :key="'col-down-'+col" class="shift-btn">
+            <div v-for="col in 7" :key="'col-down-' + col" class="shift-btn">
               <v-tooltip text="Spalte nach unten drücken" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-arrow-down-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'down')"></v-btn>
+                  <v-btn v-bind="props" icon="mdi-arrow-down-bold" variant="outlined" class="cyber-btn" size="small"
+                    @click="shiftCol(col - 1, 'down')"></v-btn>
                 </template>
               </v-tooltip>
             </div>
             <div class="empty-corner"></div>
 
-            <template v-for="(row, rowIndex) in board" :key="'row-'+rowIndex">
-              
+            <template v-for="(row, rowIndex) in board" :key="'row-' + rowIndex">
+
               <div class="shift-btn">
                 <v-tooltip text="Reihe nach rechts drücken" location="left">
                   <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-arrow-right-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'right')"></v-btn>
+                    <v-btn v-bind="props" icon="mdi-arrow-right-bold" variant="outlined" class="cyber-btn" size="small"
+                      @click="shiftRow(rowIndex, 'right')"></v-btn>
                   </template>
                 </v-tooltip>
               </div>
 
-              <div
-                v-for="(cell, colIndex) in row"
-                :key="'cell-'+rowIndex+'-'+colIndex"
-                class="cell"
-                :class="{
-                  'anim-shift-right': shiftAnim.row === rowIndex && shiftAnim.direction === 'right',
-                  'anim-shift-left': shiftAnim.row === rowIndex && shiftAnim.direction === 'left',
-                  'anim-shift-down': shiftAnim.col === colIndex && shiftAnim.direction === 'down',
-                  'anim-shift-up': shiftAnim.col === colIndex && shiftAnim.direction === 'up',
-                  'winning-cell-highlight': isWinningCell(rowIndex, colIndex)
-                }"
-                @click="placePiece(rowIndex, colIndex)"
-              >
-                <div v-if="cell !== 0" class="piece" :class="{'player1': cell === 1, 'player2': cell === 2}"></div>
+              <div v-for="(cell, colIndex) in row" :key="'cell-' + rowIndex + '-' + colIndex" class="cell" :class="{
+                'anim-shift-right': shiftAnim.row === rowIndex && shiftAnim.direction === 'right',
+                'anim-shift-left': shiftAnim.row === rowIndex && shiftAnim.direction === 'left',
+                'anim-shift-down': shiftAnim.col === colIndex && shiftAnim.direction === 'down',
+                'anim-shift-up': shiftAnim.col === colIndex && shiftAnim.direction === 'up',
+                'winning-cell-highlight': isWinningCell(rowIndex, colIndex)
+              }" @click="placePiece(rowIndex, colIndex)">
+                <div v-if="cell !== 0" class="piece" :class="{ 'player1': cell === 1, 'player2': cell === 2 }"></div>
               </div>
 
               <div class="shift-btn">
                 <v-tooltip text="Reihe nach links drücken" location="right">
                   <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-arrow-left-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftRow(rowIndex, 'left')"></v-btn>
+                    <v-btn v-bind="props" icon="mdi-arrow-left-bold" variant="outlined" class="cyber-btn" size="small"
+                      @click="shiftRow(rowIndex, 'left')"></v-btn>
                   </template>
                 </v-tooltip>
               </div>
             </template>
 
             <div class="empty-corner"></div>
-            <div v-for="col in 7" :key="'col-up-'+col" class="shift-btn">
+            <div v-for="col in 7" :key="'col-up-' + col" class="shift-btn">
               <v-tooltip text="Spalte nach oben drücken" location="bottom">
                 <template v-slot:activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-arrow-up-bold" variant="outlined" class="cyber-btn" size="small" @click="shiftCol(col-1, 'up')"></v-btn>
+                  <v-btn v-bind="props" icon="mdi-arrow-up-bold" variant="outlined" class="cyber-btn" size="small"
+                    @click="shiftCol(col - 1, 'up')"></v-btn>
                 </template>
               </v-tooltip>
             </div>
             <div class="empty-corner"></div>
-            
+
           </div>
         </div>
       </v-col>
     </v-row>
     <v-fade-transition>
       <div v-if="showWinDialog" class="win-banner bg-deep-dark cyber-dialog text-center pa-6">
-        <v-card-title 
-          class="text-h4 font-weight-bold pt-2 pb-2 title-glow" 
-          :class="winner === 1 ? 'text-cyan' : 'text-orange'"
-        >
+        <v-card-title class="text-h4 font-weight-bold pt-2 pb-2 title-glow"
+          :class="winner === 1 ? 'text-cyan' : 'text-orange'">
           SYSTEM OVERRIDE
         </v-card-title>
         <div class="d-flex justify-center align-center mb-4">
@@ -111,19 +103,16 @@ const route = useRoute();
 const router = useRouter();
 const roomId = route.params.id as string;
 
-// Das Spielfeld
 const board = ref<number[][]>(Array.from({ length: 7 }, () => Array(7).fill(0)));
 const currentPlayer = ref<number>(1);
 const winner = ref<number | null>(null);
 
-  const winningCells = ref<{row: number, col: number}[]>([]);
+const winningCells = ref<{ row: number, col: number }[]>([]);
 
-// Prüft, ob eine bestimmte Zelle Teil der Gewinner-Reihe ist
 const isWinningCell = (row: number, col: number) => {
   return winningCells.value.some(c => c.row === row && c.col === col);
 };
 
-// Findet die Koordinaten der 5 gewinnenden Steine
 const getWinningCells = (boardState: number[][], player: number) => {
   const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
   for (let r = 0; r < 7; r++) {
@@ -131,13 +120,13 @@ const getWinningCells = (boardState: number[][], player: number) => {
       if (boardState[r][c] !== player) continue;
       for (const [dr, dc] of dirs) {
         let count = 1;
-        const cells = [{row: r, col: c}];
+        const cells = [{ row: r, col: c }];
         for (let i = 1; i < 5; i++) {
           const nr = r + dr * i;
           const nc = c + dc * i;
           if (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && boardState[nr][nc] === player) {
             count++;
-            cells.push({row: nr, col: nc});
+            cells.push({ row: nr, col: nc });
           } else { break; }
         }
         if (count === 5) return cells; // 5 in einer Reihe gefunden!
@@ -147,7 +136,7 @@ const getWinningCells = (boardState: number[][], player: number) => {
   return [];
 };
 
-  const playerCount = ref<number>(0);
+const playerCount = ref<number>(0);
 
 const showWinDialog = ref<boolean>(false);
 const myRole = ref<number>(parseInt(localStorage.getItem(`shift_role_${roomId}`) || '0'));
@@ -160,7 +149,6 @@ interface ShiftAnimation {
 }
 const shiftAnim = ref<ShiftAnimation>({ row: -1, col: -1, direction: '' });
 
-// --- WEBSOCKET LOGIK ---
 let ws: WebSocket | null = null;
 
 onMounted(() => {
@@ -173,35 +161,31 @@ onMounted(() => {
 
   ws.onmessage = (event) => {
     const update = JSON.parse(event.data);
-    
-    // Server hat Vorrang: Überschreibe lokales Board mit Server-Status
+
     board.value = update.board;
     currentPlayer.value = update.current_player;
-    
-    // Prüfen ob jemand gewonnen hat
+
     if (update.winner) {
       winner.value = update.winner;
-      
-      // Kurze Verzögerung, damit man den Sieg-Zug noch sieht
+
       setTimeout(() => {
         alert(`🎉 SPIELER ${update.winner} HAT GEWONNEN! 🎉\nDie Lobby wird nun geschlossen.`);
-        router.push('/'); // Zurück zur Startseite
+        router.push('/');
       }, 500);
     }
   };
 
   ws.onmessage = (event) => {
     const update = JSON.parse(event.data);
-    
+
     board.value = update.board;
     currentPlayer.value = update.current_player;
     playerCount.value = update.player_count;
-    
+
     if (update.winner) {
       winner.value = update.winner;
       winningCells.value = getWinningCells(update.board, update.winner);
-      
-      // ÄNDERUNG: Statt alert() zeigen wir den Dialog an
+
       setTimeout(() => {
         showWinDialog.value = true;
       }, 500);
@@ -216,9 +200,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (ws) ws.close();
 });
-
-
-// --- SPIELER AKTIONEN ---
 
 const placePiece = (row: number, col: number) => {
   if (!isMyTurn.value) return;
@@ -246,7 +227,6 @@ const shiftCol = (colIndex: number, direction: 'up' | 'down') => {
   }
 };
 
-// Hilfsfunktion für die Animation (wird sofort ausgelöst für besseres lokales Feedback)
 const triggerAnimation = (type: 'row' | 'col', index: number, direction: string) => {
   if (type === 'row') shiftAnim.value = { row: index, col: -1, direction };
   if (type === 'col') shiftAnim.value = { row: -1, col: index, direction };
@@ -287,7 +267,7 @@ const returnToLobby = () => {
   height: 100%;
   background-color: #1e222b;
   border-radius: 8px;
-  box-shadow: inset 0 3px 6px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(0, 229, 255, 0.05);
   display: flex;
   justify-content: center;
@@ -301,54 +281,100 @@ const returnToLobby = () => {
   border-color: rgba(0, 229, 255, 0.3);
 }
 
-/* --- ANIMATIONEN --- */
-.anim-shift-right { animation: slideGlowRight 0.3s ease-out; }
-.anim-shift-left { animation: slideGlowLeft 0.3s ease-out; }
-.anim-shift-down { animation: slideGlowDown 0.3s ease-out; }
-.anim-shift-up { animation: slideGlowUp 0.3s ease-out; }
+.anim-shift-right {
+  animation: slideGlowRight 0.3s ease-out;
+}
+
+.anim-shift-left {
+  animation: slideGlowLeft 0.3s ease-out;
+}
+
+.anim-shift-down {
+  animation: slideGlowDown 0.3s ease-out;
+}
+
+.anim-shift-up {
+  animation: slideGlowUp 0.3s ease-out;
+}
 
 @keyframes slideGlowRight {
-  0% { transform: translateX(-8px); box-shadow: inset 15px 0 15px -10px rgba(0, 229, 255, 0.8); }
-  100% { transform: translateX(0); box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
-}
-@keyframes slideGlowLeft {
-  0% { transform: translateX(8px); box-shadow: inset -15px 0 15px -10px rgba(0, 229, 255, 0.8); }
-  100% { transform: translateX(0); box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
-}
-@keyframes slideGlowDown {
-  0% { transform: translateY(-8px); box-shadow: inset 0 15px 15px -10px rgba(0, 229, 255, 0.8); }
-  100% { transform: translateY(0); box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
-}
-@keyframes slideGlowUp {
-  0% { transform: translateY(8px); box-shadow: inset 0 -15px 15px -10px rgba(0, 229, 255, 0.8); }
-  100% { transform: translateY(0); box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
+  0% {
+    transform: translateX(-8px);
+    box-shadow: inset 15px 0 15px -10px rgba(0, 229, 255, 0.8);
+  }
+
+  100% {
+    transform: translateX(0);
+    box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0);
+  }
 }
 
-/* SPIELSTEINE */
+@keyframes slideGlowLeft {
+  0% {
+    transform: translateX(8px);
+    box-shadow: inset -15px 0 15px -10px rgba(0, 229, 255, 0.8);
+  }
+
+  100% {
+    transform: translateX(0);
+    box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0);
+  }
+}
+
+@keyframes slideGlowDown {
+  0% {
+    transform: translateY(-8px);
+    box-shadow: inset 0 15px 15px -10px rgba(0, 229, 255, 0.8);
+  }
+
+  100% {
+    transform: translateY(0);
+    box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0);
+  }
+}
+
+@keyframes slideGlowUp {
+  0% {
+    transform: translateY(8px);
+    box-shadow: inset 0 -15px 15px -10px rgba(0, 229, 255, 0.8);
+  }
+
+  100% {
+    transform: translateY(0);
+    box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0);
+  }
+}
+
 .piece {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  box-shadow: inset 0 -3px 6px rgba(0,0,0,0.4);
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.4);
   animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes popIn {
-  0% { transform: scale(0); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .player1 {
   background: radial-gradient(circle at 30% 30%, #4dd0e1, #00acc1);
-  box-shadow: 0 0 15px rgba(0, 229, 255, 0.6), inset 0 -3px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
 }
 
 .player2 {
   background: radial-gradient(circle at 30% 30%, #ffb74d, #f57c00);
-  box-shadow: 0 0 15px rgba(255, 152, 0, 0.6), inset 0 -3px 6px rgba(0,0,0,0.4);
+  box-shadow: 0 0 15px rgba(255, 152, 0, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.4);
 }
 
-/* BUTTONS */
 .cyber-btn {
   color: #00e5ff !important;
   border-color: rgba(0, 229, 255, 0.2) !important;
@@ -356,6 +382,7 @@ const returnToLobby = () => {
   transition: all 0.3s ease;
   border-radius: 8px;
 }
+
 .cyber-btn:hover {
   background-color: rgba(0, 229, 255, 0.1);
   border-color: rgba(0, 229, 255, 0.8) !important;
@@ -366,7 +393,7 @@ const returnToLobby = () => {
 .player-chip {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(5px);
 }
 
@@ -380,35 +407,66 @@ const returnToLobby = () => {
 }
 
 @keyframes pulse {
-  0% { opacity: 0.6; transform: scale(0.9); }
-  100% { opacity: 1; transform: scale(1.1); }
+  0% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
-.empty-corner { width: 100%; height: 100%; }
+.empty-corner {
+  width: 100%;
+  height: 100%;
+}
 
 .cyber-dialog {
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.5);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 0, 0, 0.5);
   background: linear-gradient(145deg, #1a1e25, #121418) !important;
 }
-.title-glow { text-shadow: 0 0 15px currentColor; letter-spacing: 2px; }
-.text-cyan { color: #00e5ff !important; }
-.text-orange { color: #ff9800 !important; }
-.trophy-glow { filter: drop-shadow(0 0 15px currentColor); animation: float 2s ease-in-out infinite; }
+
+.title-glow {
+  text-shadow: 0 0 15px currentColor;
+  letter-spacing: 2px;
+}
+
+.text-cyan {
+  color: #00e5ff !important;
+}
+
+.text-orange {
+  color: #ff9800 !important;
+}
+
+.trophy-glow {
+  filter: drop-shadow(0 0 15px currentColor);
+  animation: float 2s ease-in-out infinite;
+}
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 .disabled-board {
   opacity: 0.6;
-  pointer-events: none; /* Blockiert physisch alle Klicks und Hover-Effekte auf dem CSS Level */
+  pointer-events: none;
   transition: opacity 0.3s ease;
 }
 
-/* Das Leuchten der Gewinner-Steine */
 .winning-cell-highlight {
   box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.7) !important;
   border: 2px solid white !important;
@@ -418,11 +476,17 @@ const returnToLobby = () => {
 }
 
 @keyframes pulseWin {
-  0% { transform: scale(1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
-  100% { transform: scale(1.15); box-shadow: 0 0 30px rgba(255, 255, 255, 1); }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  }
+
+  100% {
+    transform: scale(1.15);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 1);
+  }
 }
 
-/* Der neue Banner, der den Dialog ersetzt */
 .win-banner {
   position: fixed;
   bottom: 30px;
@@ -432,11 +496,10 @@ const returnToLobby = () => {
   width: 90%;
   max-width: 600px;
   border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 0, 0, 0.5);
   background: linear-gradient(145deg, #1a1e25, #121418);
 }
 
-/* Verhindert Klicks, ohne das Feld abzudunkeln */
 .game-over-board {
   pointer-events: none;
 }

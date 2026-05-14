@@ -8,12 +8,8 @@ axum = { version = "0.7", features = ["ws"] }
 tokio = { version = "1.36", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# SQLx für Postgres und JSON-Support (für das 2D Array)
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "json"] }
-# Tower-HTTP für CORS (damit Vue auf Port 5173 mit Rust auf Port 3000 reden darf)
 tower-http = { version = "0.5", features = ["cors"] }
-# Um zufällige Raum-Codes zu generieren
 rand = "0.8"
-# Für WebSocket Streams
 futures-util = "0.3"
 dotenvy = "0.15"
