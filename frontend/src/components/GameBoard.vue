@@ -122,7 +122,8 @@ const shiftAnim = ref<ShiftAnimation>({ row: -1, col: -1, direction: '' });
 let ws: WebSocket | null = null;
 
 onMounted(() => {
-  ws = new WebSocket(`ws://${window.location.host}:3000/ws/games/${roomId}`);
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${window.location.host}/ws/games/${roomId}`);
 
   ws.onopen = () => {
     console.log(`Erfolgreich mit Raum ${roomId} verbunden!`);
