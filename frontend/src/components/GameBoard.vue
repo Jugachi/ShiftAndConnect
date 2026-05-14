@@ -9,6 +9,7 @@
           :color="playerCount < 2 ? 'grey' : (currentPlayer === 1 ? '#00e5ff' : '#ff9800')"
           variant="outlined"
           class="text-subtitle-1 font-weight-bold px-6 py-5 player-chip"
+          v-if="!winner"
         >
           <span v-if="playerCount < 2">
             <v-progress-circular indeterminate size="20" width="2" class="mr-2"></v-progress-circular>
@@ -20,7 +21,7 @@
       </v-col>
 
       <v-col cols="12" class="d-flex justify-center">
-        <div class="game-board-wrapper" :class="{ 'disabled-board': !isMyTurn }">
+        <div class="game-board-wrapper" :class="{ 'disabled-board': !isMyTurn && !winner, 'game-over-board': winner }">
           <div class="game-board">
             
             <div class="empty-corner"></div>
@@ -44,6 +45,7 @@
                   'anim-shift-left': shiftAnim.row === rowIndex && shiftAnim.direction === 'left',
                   'anim-shift-down': shiftAnim.col === colIndex && shiftAnim.direction === 'down',
                   'anim-shift-up': shiftAnim.col === colIndex && shiftAnim.direction === 'up',
+                  'winning-cell-highlight': isWinningCell(rowIndex, colIndex) /* <--- NEU */
                 }"
                 @click="placePiece(rowIndex, colIndex)"
               >
@@ -65,30 +67,23 @@
         </div>
       </v-col>
     </v-row>
-    <v-dialog v-model="showWinDialog" max-width="500" persistent>
-      <v-card class="bg-deep-dark cyber-dialog text-center pa-6">
+    <v-fade-transition>
+      <div v-if="showWinDialog" class="win-banner bg-deep-dark cyber-dialog text-center pa-6">
         <v-card-title 
-          class="text-h4 font-weight-bold pt-4 pb-2 title-glow" 
+          class="text-h4 font-weight-bold pt-2 pb-2 title-glow" 
           :class="winner === 1 ? 'text-cyan' : 'text-orange'"
         >
           SYSTEM OVERRIDE
         </v-card-title>
-        <v-card-text>
-          <div class="mb-6">
-            <v-icon size="100" :color="winner === 1 ? '#00e5ff' : '#ff9800'" class="mb-4 trophy-glow">mdi-trophy</v-icon>
-          </div>
-          <h2 class="text-h4 text-white mb-2">
-            SPIELER {{ winner }} GEWINNT!
-          </h2>
-          <p class="text-grey mt-4">Verbindung zur Lobby wird wiederhergestellt...</p>
-        </v-card-text>
-        <v-card-actions class="justify-center pb-4 mt-4">
-          <v-btn size="x-large" variant="outlined" :color="winner === 1 ? '#00e5ff' : '#ff9800'" @click="returnToLobby">
-            Feld verlassen
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        <div class="d-flex justify-center align-center mb-4">
+          <v-icon size="60" :color="winner === 1 ? '#00e5ff' : '#ff9800'" class="mr-4 trophy-glow">mdi-trophy</v-icon>
+          <h2 class="text-h4 text-white">SPIELER {{ winner }} GEWINNT!</h2>
+        </div>
+        <v-btn size="x-large" variant="outlined" :color="winner === 1 ? '#00e5ff' : '#ff9800'" @click="returnToLobby">
+          Feld verlassen
+        </v-btn>
+      </div>
+    </v-fade-transition>
   </v-container>
 </template>
 
@@ -104,6 +99,37 @@ const roomId = route.params.id as string;
 const board = ref<number[][]>(Array.from({ length: 7 }, () => Array(7).fill(0)));
 const currentPlayer = ref<number>(1);
 const winner = ref<number | null>(null);
+
+  const winningCells = ref<{row: number, col: number}[]>([]);
+
+// Prüft, ob eine bestimmte Zelle Teil der Gewinner-Reihe ist
+const isWinningCell = (row: number, col: number) => {
+  return winningCells.value.some(c => c.row === row && c.col === col);
+};
+
+// Findet die Koordinaten der 5 gewinnenden Steine
+const getWinningCells = (boardState: number[][], player: number) => {
+  const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  for (let r = 0; r < 7; r++) {
+    for (let c = 0; c < 7; c++) {
+      if (boardState[r][c] !== player) continue;
+      for (const [dr, dc] of dirs) {
+        let count = 1;
+        const cells = [{row: r, col: c}];
+        for (let i = 1; i < 5; i++) {
+          const nr = r + dr * i;
+          const nc = c + dc * i;
+          if (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && boardState[nr][nc] === player) {
+            count++;
+            cells.push({row: nr, col: nc});
+          } else { break; }
+        }
+        if (count === 5) return cells; // 5 in einer Reihe gefunden!
+      }
+    }
+  }
+  return [];
+};
 
   const playerCount = ref<number>(0);
 
@@ -157,6 +183,7 @@ onMounted(() => {
     
     if (update.winner) {
       winner.value = update.winner;
+      winningCells.value = getWinningCells(update.board, update.winner);
       
       // ÄNDERUNG: Statt alert() zeigen wir den Dialog an
       setTimeout(() => {
@@ -363,5 +390,38 @@ const returnToLobby = () => {
   opacity: 0.6;
   pointer-events: none; /* Blockiert physisch alle Klicks und Hover-Effekte auf dem CSS Level */
   transition: opacity 0.3s ease;
+}
+
+/* Das Leuchten der Gewinner-Steine */
+.winning-cell-highlight {
+  box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.7) !important;
+  border: 2px solid white !important;
+  animation: pulseWin 1s infinite alternate;
+  z-index: 10;
+  position: relative;
+}
+
+@keyframes pulseWin {
+  0% { transform: scale(1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+  100% { transform: scale(1.15); box-shadow: 0 0 30px rgba(255, 255, 255, 1); }
+}
+
+/* Der neue Banner, der den Dialog ersetzt */
+.win-banner {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.5);
+  background: linear-gradient(145deg, #1a1e25, #121418);
+}
+
+/* Verhindert Klicks, ohne das Feld abzudunkeln */
+.game-over-board {
+  pointer-events: none;
 }
 </style>
