@@ -50,7 +50,7 @@ This command will build the frontend and backend images, set up the PostgreSQL d
 docker compose up --build -d
 ```
 Once finished:
-- The **Frontend** will be accessible at `http://localhost:5173` (or the port defined in your compose file).
+- The **Frontend** will be accessible at `http://localhost:6010` (or the port defined in your compose file).
 - The **Backend** API will run on `http://localhost:3000`.
 
 ---
