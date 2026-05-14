@@ -2,7 +2,7 @@
   <v-container class="text-center fill-height bg-deep-dark" fluid>
     <v-row justify="center" align="center" class="w-100">
       <v-col cols="12" sm="10" md="10" lg="8">
-        <h1 class="text-h3 font-weight-bold text-white mb-8 title-glow">SYSTEM UPLINK</h1>
+        <h1 class="text-h3 font-weight-bold text-white mb-8 title-glow">SHIFT & CONNECT</h1>
 
         <div class="lobby-wrapper">
           <v-row no-gutters>
@@ -43,11 +43,12 @@
                 <v-card
                   v-for="game in gamesList"
                   :key="game.room_code"
-                  class="cyber-server-card mb-3 pa-3 d-flex justify-space-between align-center"
+                  class="cyber-server-card mb-3 pa-3 d-flex justify-space-between align-center cursor-pointer"
                   variant="outlined"
+                  @click="initiateJoin(game)"
                 >
-                  <div class="d-flex align-center">
-                    <v-icon :color="game.is_private ? 'error' : 'success'" class="mr-3">
+                  <div class="d-flex align-center" style="width: 40%">
+                    <v-icon :color="game.is_private ? 'error' : 'success'" size="x-large" class="mr-4 icon-glow">
                       {{ game.is_private ? 'mdi-lock' : 'mdi-lock-open-variant' }}
                     </v-icon>
                     <div class="text-left">
@@ -55,12 +56,16 @@
                       <div class="text-caption text-grey-lighten-1">Modus: {{ game.game_mode.toUpperCase() }}</div>
                     </div>
                   </div>
+
+                  <div class="d-flex justify-center flex-grow-1">
+                    <v-icon size="x-large" color="rgba(255, 255, 255, 0.2)">mdi-plus</v-icon>
+                  </div>
                   
                   <v-btn
                     icon="mdi-login"
                     variant="tonal"
                     :color="game.is_private ? 'error' : 'success'"
-                    @click="initiateJoin(game)"
+                    @click.stop="initiateJoin(game)"
                   ></v-btn>
                 </v-card>
               </div>
@@ -143,7 +148,7 @@ onMounted(() => {
   fetchGames(); // Initiales Laden
 
   // Verbinde dich mit dem Lobby-Kanal
-  lobbyWs = new WebSocket('ws://127.0.0.1:3000/ws/lobby');
+  lobbyWs = new WebSocket('ws://${window.location.host}:3000/ws/lobby');
   
   lobbyWs.onmessage = (event) => {
     // Wenn der Server "update" schickt (neues Spiel, Spiel gewonnen oder Inaktivität)
@@ -163,7 +168,7 @@ onUnmounted(() => {
 // Holt die Liste der aktiven Spiele
 const fetchGames = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:3000/api/games');
+    const response = await fetch('/api/games');
     if (response.ok) {
       gamesList.value = await response.json();
     }
@@ -175,7 +180,7 @@ const fetchGames = async () => {
 // Spiel erstellen
 const createGame = async () => {
   try {
-    const response = await fetch('http://127.0.0.1:3000/api/games', {
+    const response = await fetch('/api/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: gameMode.value, is_private: isPrivate.value }), 
@@ -184,6 +189,8 @@ const createGame = async () => {
     if (response.ok) {
       const data = await response.json();
       createdRoomCode.value = data.room_code;
+
+      localStorage.setItem(`shift_role_${data.room_code}`, '1');
       
       // Hinweis: Wir müssen hier fetchGames() nicht mehr manuell rufen, 
       // da der Server sofort ein 'update' über WebSocket schickt!
@@ -227,7 +234,7 @@ const submitJoin = async () => {
 
 const attemptJoin = async (roomCode: string, password: string | null) => {
   try {
-    const response = await fetch(`http://127.0.0.1:3000/api/games/${roomCode}/join`, {
+    const response = await fetch(`/api/games/${roomCode}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
@@ -235,6 +242,7 @@ const attemptJoin = async (roomCode: string, password: string | null) => {
 
     if (response.ok) {
       showJoinDialog.value = false;
+      localStorage.setItem(`shift_role_${roomCode}`, '2');
       router.push(`/game/${roomCode}`);
     } else if (response.status === 401) {
       joinError.value = "Falsches Passwort!";
@@ -303,4 +311,7 @@ const attemptJoin = async (roomCode: string, password: string | null) => {
 
 /* Input */
 :deep(.cyber-input input) { color: white !important; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
+
+.icon-glow { filter: drop-shadow(0 0 8px currentColor); }
+.cursor-pointer { cursor: pointer; }
 </style>

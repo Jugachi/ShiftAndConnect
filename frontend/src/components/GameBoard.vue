@@ -6,20 +6,21 @@
         <v-btn icon="mdi-arrow-left" variant="text" color="grey" @click="router.push('/')" class="mr-4"></v-btn>
         
         <v-chip
-          :color="currentPlayer === 1 ? '#00e5ff' : '#ff9800'"
+          :color="playerCount < 2 ? 'grey' : (currentPlayer === 1 ? '#00e5ff' : '#ff9800')"
           variant="outlined"
           class="text-subtitle-1 font-weight-bold px-6 py-5 player-chip"
         >
-          Spieler {{ currentPlayer }} ist am Zug
-          <span 
-            class="glow-dot ml-3" 
-            :style="{ backgroundColor: currentPlayer === 1 ? '#00e5ff' : '#ff9800' }"
-          ></span>
+          <span v-if="playerCount < 2">
+            <v-progress-circular indeterminate size="20" width="2" class="mr-2"></v-progress-circular>
+            Warte auf Gegner ({{ playerCount }}/2)
+          </span>
+          <span v-else-if="isMyTurn">DU bist am Zug (Spieler {{ currentPlayer }})</span>
+          <span v-else>GEGNER ist am Zug (Spieler {{ currentPlayer }})</span>
         </v-chip>
       </v-col>
 
       <v-col cols="12" class="d-flex justify-center">
-        <div class="game-board-wrapper">
+        <div class="game-board-wrapper" :class="{ 'disabled-board': !isMyTurn }">
           <div class="game-board">
             
             <div class="empty-corner"></div>
@@ -64,11 +65,35 @@
         </div>
       </v-col>
     </v-row>
+    <v-dialog v-model="showWinDialog" max-width="500" persistent>
+      <v-card class="bg-deep-dark cyber-dialog text-center pa-6">
+        <v-card-title 
+          class="text-h4 font-weight-bold pt-4 pb-2 title-glow" 
+          :class="winner === 1 ? 'text-cyan' : 'text-orange'"
+        >
+          SYSTEM OVERRIDE
+        </v-card-title>
+        <v-card-text>
+          <div class="mb-6">
+            <v-icon size="100" :color="winner === 1 ? '#00e5ff' : '#ff9800'" class="mb-4 trophy-glow">mdi-trophy</v-icon>
+          </div>
+          <h2 class="text-h4 text-white mb-2">
+            SPIELER {{ winner }} GEWINNT!
+          </h2>
+          <p class="text-grey mt-4">Verbindung zur Lobby wird wiederhergestellt...</p>
+        </v-card-text>
+        <v-card-actions class="justify-center pb-4 mt-4">
+          <v-btn size="x-large" variant="outlined" :color="winner === 1 ? '#00e5ff' : '#ff9800'" @click="returnToLobby">
+            Feld verlassen
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -79,6 +104,12 @@ const roomId = route.params.id as string;
 const board = ref<number[][]>(Array.from({ length: 7 }, () => Array(7).fill(0)));
 const currentPlayer = ref<number>(1);
 const winner = ref<number | null>(null);
+
+  const playerCount = ref<number>(0);
+
+const showWinDialog = ref<boolean>(false);
+const myRole = ref<number>(parseInt(localStorage.getItem(`shift_role_${roomId}`) || '0'));
+const isMyTurn = computed(() => myRole.value === currentPlayer.value && playerCount.value >= 2);
 
 interface ShiftAnimation {
   row: number;
@@ -91,7 +122,7 @@ const shiftAnim = ref<ShiftAnimation>({ row: -1, col: -1, direction: '' });
 let ws: WebSocket | null = null;
 
 onMounted(() => {
-  ws = new WebSocket(`ws://127.0.0.1:3000/ws/games/${roomId}`);
+  ws = new WebSocket(`ws://${window.location.host}:3000/ws/games/${roomId}`);
 
   ws.onopen = () => {
     console.log(`Erfolgreich mit Raum ${roomId} verbunden!`);
@@ -116,6 +147,23 @@ onMounted(() => {
     }
   };
 
+  ws.onmessage = (event) => {
+    const update = JSON.parse(event.data);
+    
+    board.value = update.board;
+    currentPlayer.value = update.current_player;
+    playerCount.value = update.player_count;
+    
+    if (update.winner) {
+      winner.value = update.winner;
+      
+      // ÄNDERUNG: Statt alert() zeigen wir den Dialog an
+      setTimeout(() => {
+        showWinDialog.value = true;
+      }, 500);
+    }
+  };
+
   ws.onerror = (error) => {
     console.error("WebSocket Fehler:", error);
   };
@@ -129,6 +177,7 @@ onUnmounted(() => {
 // --- SPIELER AKTIONEN ---
 
 const placePiece = (row: number, col: number) => {
+  if (!isMyTurn.value) return;
   if (board.value[row][col] === 0 && ws && ws.readyState === WebSocket.OPEN) {
     const payload = { action: 'place', row, col, player: currentPlayer.value };
     ws.send(JSON.stringify(payload));
@@ -136,6 +185,7 @@ const placePiece = (row: number, col: number) => {
 };
 
 const shiftRow = (rowIndex: number, direction: 'right' | 'left') => {
+  if (!isMyTurn.value) return;
   if (ws && ws.readyState === WebSocket.OPEN) {
     triggerAnimation('row', rowIndex, direction);
     const payload = { action: 'shift_row', row: rowIndex, direction, player: currentPlayer.value };
@@ -144,6 +194,7 @@ const shiftRow = (rowIndex: number, direction: 'right' | 'left') => {
 };
 
 const shiftCol = (colIndex: number, direction: 'up' | 'down') => {
+  if (!isMyTurn.value) return;
   if (ws && ws.readyState === WebSocket.OPEN) {
     triggerAnimation('col', colIndex, direction);
     const payload = { action: 'shift_col', col: colIndex, direction, player: currentPlayer.value };
@@ -156,6 +207,11 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
   if (type === 'row') shiftAnim.value = { row: index, col: -1, direction };
   if (type === 'col') shiftAnim.value = { row: -1, col: index, direction };
   setTimeout(() => { shiftAnim.value = { row: -1, col: -1, direction: '' }; }, 300);
+};
+
+const returnToLobby = () => {
+  showWinDialog.value = false;
+  router.push('/');
 };
 </script>
 
@@ -285,4 +341,26 @@ const triggerAnimation = (type: 'row' | 'col', index: number, direction: string)
 }
 
 .empty-corner { width: 100%; height: 100%; }
+
+.cyber-dialog {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.5);
+  background: linear-gradient(145deg, #1a1e25, #121418) !important;
+}
+.title-glow { text-shadow: 0 0 15px currentColor; letter-spacing: 2px; }
+.text-cyan { color: #00e5ff !important; }
+.text-orange { color: #ff9800 !important; }
+.trophy-glow { filter: drop-shadow(0 0 15px currentColor); animation: float 2s ease-in-out infinite; }
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.disabled-board {
+  opacity: 0.6;
+  pointer-events: none; /* Blockiert physisch alle Klicks und Hover-Effekte auf dem CSS Level */
+  transition: opacity 0.3s ease;
+}
 </style>
